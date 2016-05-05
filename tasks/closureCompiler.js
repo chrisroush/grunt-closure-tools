@@ -19,6 +19,7 @@ var cCompiler = taskLib.compiler;
 var cHelpers = taskLib.helpers;
 
 module.exports = function( grunt ) {
+
   grunt.registerMultiTask('closureCompiler', 'Google Closure Library compiler', function() {
     // Tell grunt this task is asynchronous.
     var compileDone = this.async();
@@ -35,36 +36,48 @@ module.exports = function( grunt ) {
 
     var isMapping = this.files.length > 1;
     var genSourceMap = (options.compilerOpts && options.compilerOpts.create_source_map === null);
-    this.files.forEach(function(fileObj) {
-      if ( !cCompiler.validateFile( fileObj ) ) {
-        grunt.log.error('closureCompiler Task Failed :: File');
-        return;
-      }
-      // for file mappings overwrite the source_map filename with 'dest' name + '.map' suffix
-      if (isMapping && genSourceMap) {
-        options.compilerOpts.create_source_map = fileObj.dest + '.map';
-      }
 
-      cmd = cCompiler.compileCommand( options, fileObj );
+    var dest = options.output;
+    var input = [].concat( options.src );
 
-      if ( cmd ) {
-        commands.push( {cmd: cmd, dest: targetName} );
-      } else if (!options.checkModified) {
-        grunt.log.error( 'FAILED to create command line for target: ' + targetName.red );
-      }
-    });
+    // Add the closure library
+    input = input.concat( [
+      options.closureLibraryPath + '/**.js',
+      '!' + options.closureLibraryPath + '/**test.js'
+    ]);
+
+
+
+
+    // for file mappings overwrite the source_map filename with 'dest' name + '.map' suffix
+    if (isMapping && genSourceMap) {
+      options.compilerOpts.create_source_map = dest + '.map';
+    }
+
+    cmd = cCompiler.compileCommand( options, input, dest );
+
+    if ( cmd ) {
+      commands.push( {cmd: cmd, dest: targetName} );
+    } else if (!options.checkModified) {
+      grunt.log.error( 'FAILED to create command line for target: ' + targetName.red );
+    }
+
 
     if ( 0 === commands.length ) {
       if (options.checkModified) {
         compileDone(true);
         return;
       }
+
       grunt.log.error('No commands produced for shell execution. Check your config file');
       compileDone(false);
       return;
     }
-    // release the kraken!
-    cHelpers.runCommands( commands, compileDone, false, options.execOpts );
 
+    // release the kraken!
+    // console.log( commands[ 0 ].cmd );
+
+    cHelpers.runCommands( commands, compileDone, false, options.execOpts );
   });
+
 };
